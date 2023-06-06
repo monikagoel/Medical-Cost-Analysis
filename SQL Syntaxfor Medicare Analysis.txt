@@ -1,0 +1,246 @@
+/* Creating a CTE  and two  column  and give answer to age and medical charges */
+With CTEsm as (SELECT *,    
+    CASE 
+        WHEN age<=19 
+            THEN 'Teen'
+        WHEN age BETWEEN 20 AND 39 THEN 'Adult'
+		WHEN age BETWEEN 40 AND 59 THEN 'Middle Age'
+        WHEN age >= 60 THEN 'Senior'
+        END AS AgeCategory
+   FROM dbo.Smokers)
+SELECT DISTINCT ROUND(AVG(charges) OVER (PARTITION BY AgeCategory),2) AS AvgChargeAge,AgeCategory,
+  COUNT(*) OVER (PARTITION BY AgeCategory) AS AgeCategoryCount   
+FROM CTEsm ORDER BY AvgChargeAge
+
+RESULT-  
+
+AvgChargeAge	AgeCategory	  AgeCategoryCount
+8660.07	      Teen	          212
+10398.9	      Adult	          810
+16412.47	      Middle Age	    832
+20631.01	      Senior	    146
+
+/*Distribution of Charges*/
+SELECT DISTINCT ROUND(charges,-3) AS Charge_Bin,  COUNT(*) AS Count
+   FROM dbo.Smokers
+GROUP BY ROUND(charges,-3)
+ORDER BY ROUND(charges,-3)
+
+Results:
+
+Charge_Bin	Count
+1000	22
+2000	198
+3000	126
+4000	128
+5000	132
+6000	90
+7000	114
+8000	92
+9000	106
+10000	94
+11000	92
+12000	96
+13000	78
+14000	62
+15000	18
+16000	20
+17000	26
+18000	28
+19000	34
+20000	30
+21000	26
+22000	30
+23000	12
+24000	20
+25000	20
+26000	18
+27000	12
+28000	16
+29000	12
+30000	12
+31000	2
+32000	4
+33000	12
+34000	12
+35000	10
+36000	14
+37000	16
+38000	12
+39000	12
+40000	22
+41000	14
+42000	18
+43000	10
+44000	20
+45000	6
+46000	14
+47000	14
+48000	2
+49000	12
+55000	2
+59000	2
+60000	2
+63000	2
+64000	2
+
+
+/*Male Distrubution of Charges*/
+SELECT  
+  DISTINCT sex,
+  ROUND(charges,-4) AS charge_bins,
+  COUNT(*) AS Count
+FROM dbo.Smokers
+where sex= 'male'
+GROUP BY sex, ROUND(charges,-4)
+ORDER BY ROUND(charges,-4);
+
+RESULTS:
+
+sex	charge_bins Count
+male	0	       282
+male	10000  	430
+male	20000 	118
+male	30000 	58
+male	40000 	92
+male	50000 	28
+male	60000	      46
+
+/* Female distribustion of chareges*/
+SELECT  
+  DISTINCT sex,
+  ROUND(charges,-4) AS charge_bins,
+  COUNT(*) AS Count
+FROM dbo.Smokers
+WHERE Sex = 'female'
+GROUP BY sex, ROUND(charges,-4)
+ORDER BY ROUND(charges,-4);
+
+RESULTS:
+
+sex	charge_bins	  Count
+female	0	  260
+female	10000	  468
+female	20000   132
+female	30000	  52
+female	40000	  54
+female	50000   16
+female	60000    6
+
+
+/*Male and Female Average Charges*/
+SELECT 
+  DISTINCT Sex, 
+  ROUND(AVG(charges) OVER (PARTITION BY sex),2) AS Avg_Charges_Sex
+FROM dbo.Smokers
+
+RESULTS:
+
+Sex	Avg_Charges_Sex
+male	      13968.88
+female	12945.18
+
+
+/*Male and Female Median Charges*/
+SELECT 
+  DISTINCT Sex,
+
+   ROUND(PERCENTILE_CONT( 0.50) Within group (order by charges) OVER (PARTITION BY Sex),2) AS Sex_Median
+FROM dbo.Smokers 
+
+RESULTS:
+
+Sex	  Sex_Median
+female	9575.44
+male	      9289.08
+
+
+/*Smoker Region Totals*/
+SELECT
+  DISTINCT region,smoker, COUNT(smoker) OVER (PARTITION BY region, 
+  smoker) AS SmokerRegionCount,COUNT(smoker) OVER () AS TotalSmokerCount  
+  from dbo.Smokers
+WHERE smoker = 1
+ORDER BY SmokerRegionCount
+
+RESULT:
+
+region	smoker	SmokerRegionCount	TotalSmokerCount
+northwest	1	           116	        424
+northeast	1	           134	        424
+southeast	1	           174	        424
+
+
+/* Charges distribution smokers or non smokers*/
+SELECT
+  Smoker, 
+  ROUND(AVG(charges),0) AS Avg_Smoking_Charges
+FROM dbo.Smokers
+GROUP BY Smoker;
+
+RESULTS:
+
+Smoker	Avg_Smoking_Charges
+0	     8507
+1	     31886
+
+
+/*Smokers by Region - Sex*/
+SELECT
+  DISTINCT sex,region,smoker, COUNT(smoker) OVER (PARTITION BY region, sex, smoker) AS SmokerRegionCount,
+  COUNT(smoker) OVER () AS SmokerTotal 
+
+FROM dbo.Smokers
+WHERE smoker = 1
+
+RESULTS:
+
+sex	     region	    smoker	SmokerRegionCount	 SmokerTotal
+female	northeast	1	58			      424
+female	northwest	1	58				424
+female	southeast	1	70				424
+male	      northeast	1	76				424
+male	      northwest	1	58				424
+male	      southeast	1	104				424
+
+
+/*Region Median Charges*/
+SELECT 
+   DISTINCT Region,
+   ROUND(PERCENTILE_CONT(0.50) Within group (order by charges)OVER (PARTITION BY Region),2) AS Region_Median,
+   ROUND(PERCENTILE_CONT(0.50) Within group (order by charges)OVER(),2) AS Overall_Median        
+FROM dbo.Smokers ORDER BY Region_Median;
+
+RESULTS:
+
+Region	Region_Median	Overall_Median
+northeast	10057.65		9421.97
+northwest	8965.8		9421.97
+southeast	8871.15		9421.97
+
+
+/*BMI Categories*/
+WITH cteBMI AS(
+SELECT 
+*,
+  CASE 
+  WHEN BMI < 18.5 THEN 'Underweight'
+  WHEN BMI >= 18.5 AND BMI < 25 THEN 'Normal'
+  WHEN BMI >= 25 AND BMI < 30 THEN 'Overweight'
+  WHEN BMI >= 30 THEN 'Obese'
+  END AS BMI_Category
+FROM DBO.Smokers)
+
+SELECT   BMI_Category,
+  ROUND(AVG(charges),2) AS Avg_Cost
+FROM cteBMI
+GROUP BY BMI_Category
+ORDER BY Avg_Cost
+
+RESULTS:
+
+BMI_Category	Avg_Cost
+Underweight	     9041.63
+Overweight	     11058.58
+Normal	     11087.45
+Obese	           15712.18
